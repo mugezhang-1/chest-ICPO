@@ -1,0 +1,24 @@
+# Image handling. Two stages:
+#  1. storage: done once offline (scripts/data/resize_images.py). Changing it means re-running the resize.
+#  2. model_input: done on the fly by the model's own processor. EVERY row (training, eval, baselines,
+#     MI-CXR probes) must read these values from here so resolution is never a hidden variable.
+
+storage:
+  long_side: 1024        # longest edge after resize; aspect ratio preserved; never upscale
+  resample: lanczos
+  format: jpeg
+  jpeg_quality: 95
+  mode: L                # MIMIC-CXR-JPG is 8-bit grayscale; processors convert to RGB themselves
+
+model_input:
+  # Qwen3-VL: patch 16, merge 2 -> one visual token per 32x32 px.
+  # min/max are pixel counts. 256 tokens ~ 262144 px (e.g. 512x512, or ~576x448 for a 4:5 film).
+  # The processor default (16.7M px) must never be used: a full-size film would be ~7.5k tokens.
+  # Budgets are defined in VISUAL TOKENS so models with different patch sizes see the same token count:
+  # pixels = tokens * (patch_size * merge_size)^2, read from each model's preprocessor_config.json
+  # (Qwen3-VL / Qwen3.5: 32 px per token -> 262,144 px; Qwen2-VL / Qwen2.5-VL: 28 px -> 200,704 px).
+  # Fixed-resolution encoders (MedGemma: 896x896 -> 256 tokens) are used at their native setting.
+  tokens_per_image: 256
+  min_tokens_per_image: 64
+  min_pixels: 65536      # Qwen3-VL equivalent of 64 tokens (kept for the scripts that read pixels directly)
+  max_pixels: 262144     # Qwen3-VL equivalent of 256 tokens

@@ -1,0 +1,10 @@
+# Chest ImaGenome label names -> our findings, for interval-progression labels (pipeline step 3).
+# Kept deliberately small (roadmap §3.2.3). Unmapped names are logged, not guessed.
+# Support Devices is not mapped: device "changes" in reports are repositionings, not disease progression.
+Pleural Effusion: [pleural effusion]
+Edema: [pulmonary edema/hazy opacity]        # ImaGenome merges edema and hazy opacity
+Consolidation: [consolidation]
+Atelectasis: [atelectasis, linear/patchy atelectasis, lobar/segmental collapse]
+Pneumothorax: [pneumothorax]
+Cardiomegaly: [enlarged cardiac silhouette]
+Lung Opacity: [lung opacity, airspace opacity]

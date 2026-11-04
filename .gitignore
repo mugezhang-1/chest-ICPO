@@ -1,0 +1,38 @@
+# --- Credentialed data: NEVER commit (PhysioNet DUA: MIMIC-CXR, ImaGenome, MS-CXR-T, QBA) ---
+/data/
+/raw/
+/images/
+*.dcm
+*.jpg
+*.jpeg
+*.png
+mimic-cxr-reports*
+*.parquet
+*.csv.gz
+# Small non-PHI manifests can be force-added explicitly (git add -f) once reviewed.
+
+# --- Models / training outputs ---
+checkpoints/
+outputs/
+runs/
+wandb/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- Misc ---
+.DS_Store
+*.log
+slurm-*.out
+.env

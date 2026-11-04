@@ -1,0 +1,18 @@
+# Second readers for labels v2 (docs/label_fix_design.md R4). Pinned full commits; local only (PhysioNet DUA).
+# disable_custom_all_reduce: vLLM's custom all-reduce kernel failed during CUDA-graph capture with TP=4 on A100-SXM4
+# (custom_all_reduce.cuh:164 invalid argument, job 7806990); NCCL is used instead. Affects speed only.
+gpt-oss-120b:
+  hf_id: openai/gpt-oss-120b
+  revision: b5c939de8f754692c1647ca79fbf85e8c1e70f8a
+  cache_dir: /fs/scratch/PAS2836/mugezhang/hf_cache/hub
+  chat_template_kwargs: {reasoning_effort: high}
+  max_tokens: 16384
+  vllm: {max_model_len: 24576, tensor_parallel_size: 4, gpu_memory_utilization: 0.88, disable_custom_all_reduce: true}
+
+qwen3.8-27b:
+  hf_id: Qwen/Qwen3.8-27B
+  revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+  cache_dir: /fs/scratch/PAS2836/mugezhang/hf_cache/hub
+  chat_template_kwargs: {enable_thinking: true}
+  max_tokens: 16384
+  vllm: {max_model_len: 24576, tensor_parallel_size: 4, gpu_memory_utilization: 0.85, limit_mm_per_prompt: {image: 0}, disable_custom_all_reduce: true}

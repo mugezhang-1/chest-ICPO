@@ -1,0 +1,15 @@
+# Data locations. Nothing under these roots is ever committed (PhysioNet DUA).
+physionet_root: /fs/ess/PAS2836/mugezhang/data/physionet            # PhysioNet tables (small, persistent)
+mimic_jpg_tables: /fs/ess/PAS2836/mugezhang/data/physionet/mimic-cxr-jpg/2.1.0
+originals_root: /fs/scratch/PAS2836/mugezhang/icpo/originals          # full-size JPGs; scratch (purgeable), re-downloadable from the manifest
+images_root: /fs/scratch/PAS2836/mugezhang/icpo/images_1024           # resized working copy (loose files; scratch; restored from shards)
+shards_root: /fs/ess/PAS2836/mugezhang/data/icpo/shards_1024          # permanent resized copy as zip shards (ess file quota allows few files)
+work_root: /fs/ess/PAS2836/mugezhang/data/icpo/work                   # manifests, eval/text outputs, QA, provenance (durable)
+# Storage layout (2026-10-11, AGENTS.md storage preferences): work_root/pipeline and work_root/labelers are symlinks to
+# build_root on scratch. They are rebuildable intermediates: scripts/pipeline/run_all.sbatch recreates them from the
+# raw files and reproduced all 14 tables byte-for-byte (repro/reference_hashes_2026-10-11.json). Everything else under
+# work_root (manifests, eval, text, qa, analysis, repro) is durable and stays on project storage. Superseded smoke-test
+# outputs and old backups were moved to /fs/scratch/PAS2836/mugezhang/icpo/superseded/.
+build_root: /fs/scratch/PAS2836/mugezhang/icpo/build
+external_root: /fs/ess/PAS2836/mugezhang/data/external                # public benchmarks (MI-CXR, ...)
+hf_home: /fs/ess/PAS2836/mugezhang/hf_cache

@@ -1,0 +1,66 @@
+# Models evaluated in Exp 1. Every entry is pinned to a Hugging Face commit; never evaluate a floating revision.
+# family: how images are sized and counted (qwen = Qwen2/2.5/3-VL and Qwen3.5 processors; gemma3 = fixed 896 px).
+# vllm: keyword arguments for vllm.LLM. chat_template_kwargs: passed to the chat template (e.g. thinking on/off).
+# max_tokens: generation cap; thinking runs need room for the reasoning before the answer.
+
+qwen3-vl-8b:
+  hf_id: Qwen/Qwen3-VL-8B-Instruct
+  revision: 0c351dd01ed87e9c1b53cbc748cba10e6187ff3b
+  family: qwen
+  paper_name: QwenVL3-8B          # name used in the MI-CXR paper's Table 1
+  vllm: {max_model_len: 16384, dtype: bfloat16}
+
+qwen3-vl-4b:
+  hf_id: Qwen/Qwen3-VL-4B-Instruct
+  revision: ebb281ec70b05090aa6165b016eac8ec08e71b17
+  family: qwen
+  paper_name: null
+  vllm: {max_model_len: 16384, dtype: bfloat16}
+
+qwen3.5-9b-nothink:
+  hf_id: Qwen/Qwen3.5-9B
+  revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a
+  family: qwen
+  paper_name: null
+  chat_template_kwargs: {enable_thinking: false}
+  vllm: {max_model_len: 16384, dtype: bfloat16, gpu_memory_utilization: 0.85}   # headroom: GDN kernel warm-up OOMed at 0.92 on A100-40GB
+
+qwen3.5-9b-think:
+  hf_id: Qwen/Qwen3.5-9B
+  revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a
+  family: qwen
+  paper_name: null
+  chat_template_kwargs: {enable_thinking: true}
+  max_tokens: 16384                # 8192 truncated 3 of 20 smoke-test answers (median reasoning ~16k chars)
+  vllm: {max_model_len: 20480, dtype: bfloat16, gpu_memory_utilization: 0.85}   # headroom: GDN kernel warm-up OOMed at 0.92 on A100-40GB
+
+lingshu-7b:
+  hf_id: lingshu-medical-mllm/Lingshu-7B
+  revision: b98aecd41dfd9d7545a6b8e2f4743ae8471bd7a9
+  family: qwen
+  paper_name: Lingshu-7B
+  vllm: {max_model_len: 16384, dtype: bfloat16}
+
+medvlm-r1:
+  hf_id: JZPeterPan/MedVLM-R1
+  revision: d256f2cfdf98c6872c1dc9f20b7dd52f49374fe9
+  family: qwen
+  paper_name: null
+  config_patch: {use_cache: true}   # saved as null by the RL trainer; transformers 5 rejects null; no effect on vLLM inference
+  vllm: {max_model_len: 16384, dtype: bfloat16}
+
+med-r1-xray:
+  hf_id: yuxianglai117/Med-R1
+  revision: 26660e6a55c5899cc76ce85c0e3a64da046e8712
+  subfolder: VQA_X-Ray            # the X-ray checkpoint (Qwen2-VL-2B); the repo holds one per modality
+  family: qwen
+  paper_name: null
+  config_patch: {use_cache: true}   # saved as null by the RL trainer; transformers 5 rejects null; no effect on vLLM inference
+  vllm: {max_model_len: 16384, dtype: bfloat16}
+
+medgemma-4b:
+  hf_id: google/medgemma-4b-it
+  revision: 290cda5eeccbee130f987c4ad74a59ae6f196408
+  family: gemma3                  # fixed 896x896 input (aspect ratio NOT preserved), 256 tokens per image, native setting
+  paper_name: MedGemma-4B
+  vllm: {max_model_len: 16384, dtype: bfloat16}

@@ -1,0 +1,44 @@
+[project]
+name = "icpo"
+version = "0.1.0"
+description = "Intervention-Consistent Policy Optimization for longitudinal chest X-ray reasoning"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=15",
+    "pillow>=10.3",
+    "pyyaml>=6",
+    "imagehash>=4.3",
+    "requests>=2.32",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+labelers = [
+    "f1chexbert==0.0.2",
+]
+# Used only to verify that stored images survive the model's own preprocessing.
+verify = ["transformers>=4.57", "torch>=2.4", "torchvision>=0.19"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["icpo"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

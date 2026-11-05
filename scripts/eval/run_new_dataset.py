@@ -1,8 +1,12 @@
 """how to run:
-python scripts/eval/run_internal_jsonl.py \
+export CC=/usr/bin/gcc CXX=/usr/bin/g++ CUDAHOSTCXX=/usr/bin/g++ NVCC_CCBIN=/usr/bin/g++
+export PYTHONPATH="$PWD:$PYTHONPATH"
+export VLLM_USE_FLASHINFER_SAMPLER=0
+
+python scripts/eval/run_new_dataset.py \
     --model qwen3-vl-8b \
-    --jsonl /path/to/test.jsonl \
-    --image-root /path/to/dataset \
+    --jsonl /fs/scratch/PAS2836/yusenpeng_dataset/ICPO_5539/chesticpo_v2_1024/test.jsonl \
+    --image-root /fs/scratch/PAS2836/yusenpeng_dataset/ICPO_5539/chesticpo_v2_1024/images \
     --split test \
     --limit 10
 """

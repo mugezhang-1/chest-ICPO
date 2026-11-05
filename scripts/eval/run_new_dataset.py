@@ -1,14 +1,19 @@
 """how to run:
+salloc --nodes=1 --ntasks-per-node=1 --gpus-per-node=1  --cpus-per-task=8 --mem=128G -A PAS2836 --partition=debug-nextgen --time=00:35:00
+module load miniconda3/24.1.2-py310
+conda activate ICPO
+
 export CC=/usr/bin/gcc CXX=/usr/bin/g++ CUDAHOSTCXX=/usr/bin/g++ NVCC_CCBIN=/usr/bin/g++
 export PYTHONPATH="$PWD:$PYTHONPATH"
 export VLLM_USE_FLASHINFER_SAMPLER=0
 
 python scripts/eval/run_new_dataset.py \
-    --model qwen3-vl-8b \
-    --jsonl /fs/scratch/PAS2836/yusenpeng_dataset/ICPO_5539/chesticpo_v2_1024/test.jsonl \
-    --image-root /fs/scratch/PAS2836/yusenpeng_dataset/ICPO_5539/chesticpo_v2_1024/images \
+    --model qwen3.5-9b-nothink \
+    --jsonl /fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024/test.jsonl \
+    --image-root /fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024/images \
     --split test \
-    --limit 10
+    --limit 20 \
+    --allow-dirty
 """
 
 import argparse
@@ -317,7 +322,7 @@ def main():
     # Save jsonl predictions + json summary
     name = args.split + (f"_limit{args.limit}" if args.limit else "") + (f"_{args.tag}" if args.tag else "")
 
-    output_dir = Path("/fs/scratch/PAS2836/yusenpeng_dataset/ICPO_5539/eval_results") / args.model
+    output_dir = Path("/fs/scratch/PAS3526/ICPO_5539/eval_results") / args.model
     output_dir.mkdir(parents=True, exist_ok=True)
 
     predictions_path = output_dir / f"{name}_predictions.jsonl"

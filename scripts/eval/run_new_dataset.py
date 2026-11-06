@@ -1,19 +1,25 @@
-"""how to run:
-salloc --nodes=1 --ntasks-per-node=1 --gpus-per-node=1  --cpus-per-task=8 --mem=128G -A PAS2836 --partition=debug-nextgen --time=00:35:00
-module load miniconda3/24.1.2-py310
-conda activate ICPO
+"""
+High-level design choices: we want to do rejection SFT on qwen3.5-9b-think (thinking mode)
 
-export CC=/usr/bin/gcc CXX=/usr/bin/g++ CUDAHOSTCXX=/usr/bin/g++ NVCC_CCBIN=/usr/bin/g++
-export PYTHONPATH="$PWD:$PYTHONPATH"
-export VLLM_USE_FLASHINFER_SAMPLER=0
+**1.0**:
+train_predictions_without_answer.jsonl - inference on qwen3.5-9b-think, the model is not exposed to the correct answer
 
-python scripts/eval/run_new_dataset.py \
-    --model qwen3.5-9b-nothink \
-    --jsonl /fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024/test.jsonl \
-    --image-root /fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024/images \
-    --split test \
-    --limit 20 \
-    --allow-dirty
+    **1.1**:
+    train_predictions_without_answer_correct_only.jsonl - filter on correct predictions only
+
+    **1.2**:
+    train_predictions_without_answer_correct_only_img_prior.jsonl - filter on samples with available reports
+
+
+**2.0**:
+train_predictions_with_answer.jsonl - inference on qwen3.5-9b-think, the model is exposed to the correct answer during generation
+
+    **2.1**:
+    train_predictions_with_answer_correct_only.jsonl - filter on correct predictions only
+
+    **2.2**:
+    train_predictions_with_answer_correct_only_img_prior.jsonl - filter on samples with available reports
+    
 """
 
 import argparse
@@ -28,6 +34,7 @@ from huggingface_hub import snapshot_download
 import vllm
 
 from vllm import LLM, SamplingParams
+from tqdm import tqdm
 
 
 from icpo import config
@@ -127,7 +134,7 @@ def relative_image_path(raw: str, strip_images_prefix: bool) -> str:
         p = Path(*p.parts[1:])
     return p.as_posix()
 
-def render_jsonl(r: dict, cond: str, image_root: Path, instruction: str) -> list[dict]:
+def render_jsonl(r: dict, cond: str, image_root: Path, instruction: str, answer_mode: str = "without") -> list[dict]:
     """Same text layout as icpo.eval.internal.render, with slot-aligned impressions."""
     m = len(r["images"])
     show_img = cond not in NO_IMAGES
@@ -147,11 +154,22 @@ def render_jsonl(r: dict, cond: str, image_root: Path, instruction: str) -> list
         if show_imp and impression:
             content.append({"type": "text", "text": f"\nReport impression for T{k + 1}: {impression}"})
     opts = "\n".join(f"{LETTERS[i]}. {o}" for i, o in enumerate(r["options"]))
-    content.append({"type": "text", "text": f"\n\nQuestion: {r['question']}\n{opts}\n\n{instruction}"})
+
+    prompt = f"\n\nQuestion: {r['question']}\n{opts}\n\n"
+    if answer_mode == "with":
+        prompt += (
+            f"Ground-truth answer: {r['answer_letter']}. {r['answer']}\n"
+            "The ground-truth answer is provided as supervision. "
+            "Explain the answer using the available clinical evidence, "
+            "then provide the final answer in the required format.\n\n"
+        )
+
+    prompt += instruction
+    content.append({"type": "text", "text": prompt})
     return [{"role": "user", "content": content}]
 
 
-def build_requests(records: list[dict], conditions: list[str], image_root: Path, instruction: str):
+def build_requests(records: list[dict], conditions: list[str], image_root: Path, instruction: str, answer_mode: str = "without"):
     reqs = []
     for r in records:
         for cond in r["conditions"]:
@@ -169,7 +187,8 @@ def build_requests(records: list[dict], conditions: list[str], image_root: Path,
                 "expected": r["answer"],
                 "relation": r["relation"],
                 "slot_relpaths": r["image_relpaths"],
-                "messages": render_jsonl(r, cond, image_root, instruction),
+                "messages": render_jsonl(r, cond, image_root, instruction, answer_mode),
+                "has_prior_report": any(impression.strip() for impression in r["prior_impressions"]),
             })
     if not reqs:
         raise ValueError(f"No requests for conditions={conditions}")
@@ -197,7 +216,7 @@ def main():
     ap.add_argument("--jsonl", type=Path, required=True)
     ap.add_argument("--image-root", type=Path, default=None,
                     help="Dataset root containing images/, or the images/ directory. Default: config images_root.")
-    ap.add_argument("--split", default="test", choices=["val", "test"])
+    ap.add_argument("--split", default="test", choices=["val", "test", "train"])
     ap.add_argument("--conditions", default="img_prior+img+text_only")
     ap.add_argument("--limit", type=int, default=0, help="Number of unique QA bundles, with all variants")
     ap.add_argument("--tag", default="jsonl")
@@ -205,6 +224,14 @@ def main():
     ap.add_argument("--max-tokens", type=int, default=1024)
     ap.add_argument("--check-tokens", type=int, default=20)
     ap.add_argument("--format", default="structured", choices=["structured", "native"])
+
+    ap.add_argument(
+        "--answer-mode",
+        choices=["without", "with"],
+        default="without",
+        help="Whether to expose the ground-truth answer during generation.",
+    )
+
     args = add_cli(ap).parse_args()
     if args.chunk < 1 or args.limit < 0 or args.check_tokens < 0:
         ap.error("--chunk must be positive; --limit and --check-tokens cannot be negative")
@@ -220,7 +247,7 @@ def main():
     for r in records:
         r["image_relpaths"] = [relative_image_path(p, strip_prefix) for p in r["images"]]
     instruction = INSTRUCTION if args.format == "structured" else INSTRUCTION_NATIVE
-    reqs = build_requests(records, conditions, image_root, instruction)
+    reqs = build_requests(records, conditions, image_root, instruction, args.answer_mode)
     n_img, image_set_hash = verify_images(reqs, image_root)
     print(f"{n_bases} bases, {len(records)} variant records, {len(reqs)} prompts, "
           f"{n_img} unique images SHA-256 hashed", flush=True)
@@ -262,8 +289,9 @@ def main():
         ans = opts.get(p.answer) if p.answer else None
         rows.append({k: r[k] for k in (
             "qid", "question_id", "family", "finding", "variant", "condition", "n_slots",
-            "expected", "relation"
+            "expected", "relation", "has_prior_report",
         )} | {
+            "answer_mode": args.answer_mode,
             "options": r["options"], "answer_letter": p.answer, "answer": ans,
             "correct": ans == r["expected"], "flag": p.flag,
             "evidence": sorted(p.evidence) if p.evidence is not None else None,
@@ -319,22 +347,44 @@ def main():
         },
     }
 
-    # Save jsonl predictions + json summary
-    name = args.split + (f"_limit{args.limit}" if args.limit else "") + (f"_{args.tag}" if args.tag else "")
 
+    # Save prediction variants
     output_dir = Path("/fs/scratch/PAS3526/ICPO_5539/eval_results") / args.model
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    predictions_path = output_dir / f"{name}_predictions.jsonl"
-    summary_path = output_dir / f"{name}_summary.json"
+    name = args.split
+    if args.limit:
+        name += f"_limit{args.limit}"
+    mode = args.answer_mode
+    # 1.0 / 2.0: all predictions
+    all_rows = rows
 
-    # One complete record per model prediction
-    with open(predictions_path, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+    # 1.1 / 2.1: correct predictions only
+    correct_rows = [r for r in rows if r["correct"]]
 
-    # Aggregated evaluation statistics
-    with open(summary_path, "w", encoding="utf-8") as f:
+    # 1.2 / 2.2: correct predictions with images and at least one available prior report
+    img_prior_rows = [r for r in correct_rows if r["condition"] == "img_prior" and r["has_prior_report"]]
+
+    outputs = {
+        f"{name}_predictions_{mode}_answer.jsonl": all_rows,
+        f"{name}_predictions_{mode}_answer_correct_only.jsonl": correct_rows,
+        f"{name}_predictions_{mode}_answer_correct_only_img_prior.jsonl": img_prior_rows,
+    }
+
+    for filename, subset in outputs.items():
+        path = output_dir / filename
+        with path.open("w", encoding="utf-8") as f:
+            for row in subset:
+                f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+        print(f"Saved {len(subset)} predictions: {path}")
+
+    stats["answer_mode"] = mode
+    stats["config"]["answer_mode"] = mode
+    stats["n_correct_predictions"] = len(correct_rows)
+    stats["n_correct_img_prior_predictions"] = len(img_prior_rows)
+    summary_path = output_dir / f"{name}_summary_{mode}_answer.json"
+
+    with summary_path.open("w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False, default=str)
 
     # Console summary
@@ -351,7 +401,10 @@ def main():
     print(f"Parse failures:    {stats['parse_failures']}")
     print(f"Truncated:         {stats['truncated']}")
     print(f"Format valid:      {stats['format_valid_rate'] * 100:.2f}%")
-    print(f"\nPredictions: {predictions_path}")
+    print(f"\nAnswer mode: {args.answer_mode}")
+    print(f"All predictions:         {len(all_rows)}")
+    print(f"Correct predictions:     {len(correct_rows)}")
+    print(f"Correct with img_prior:  {len(img_prior_rows)}")
     print(f"Summary:     {summary_path}")
 
 if __name__ == "__main__":

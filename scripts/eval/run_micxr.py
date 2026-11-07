@@ -22,8 +22,8 @@ from icpo.eval.parser import parse_lenient
 from icpo.eval.probes import PROBES, REWORD_INSTRUCTION, REWORD_INTRO, present, presented_choices
 from icpo.provenance import add_cli, require_clean_tree, write_table
 
-HF_CACHE = "/fs/scratch/PAS2836/mugezhang/hf_cache_large"
-
+# HF_CACHE = "/fs/scratch/PAS2836/mugezhang/hf_cache_large"
+HF_CACHE = "/fs/scratch/PAS2836/yusenpeng_cache"
 
 def verify_images(items, image_root):
     rec = pd.read_parquet(config.path("work_root") / "manifests" / "images_v1.resized.parquet")

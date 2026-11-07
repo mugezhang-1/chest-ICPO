@@ -36,3 +36,6 @@ venv/
 *.log
 slurm-*.out
 .env
+yusen.md
+*.out
+*.log

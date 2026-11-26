@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=qwen35-grpo-base
+#SBATCH --job-name=qwen35-grpo-base-1hour
 #SBATCH --partition=debug-quad
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=256G
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --account PAS3526
-#SBATCH --output=logs/qwen35-grpo-base.out
+#SBATCH --output=logs/qwen35-grpo-base_%j.out
 
 set -euo pipefail
 
@@ -34,8 +34,8 @@ export OMP_NUM_THREADS=4
 export NGPUS=1
 
 # Dataset
-export TRAIN_FILE=/fs/scratch/PAS3526/ICPO_5539/RL_dataset/train_smoke.parquet
-export VAL_FILE=/fs/scratch/PAS3526/ICPO_5539/RL_dataset/val_smoke.parquet
+export TRAIN_FILE=/fs/scratch/PAS3526/ICPO_5539/RL_dataset/prepared_with_answer_correct_only_img.parquet
+export VAL_FILE=/fs/scratch/PAS3526/ICPO_5539/RL_dataset/prepared_without_answer_correct_only_img_VALIDATION.parquet
 
 mkdir -p "$HF_HOME"
 

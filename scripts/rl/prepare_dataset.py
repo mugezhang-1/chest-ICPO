@@ -9,15 +9,38 @@ import pandas as pd
 module load miniconda3/24.1.2-py310
 conda activate ICPO
 
+# training set
 python scripts/rl/prepare_dataset.py \
-    --input /fs/scratch/PAS3526/advikaa/prepared_reasoning_with_answer_correct_only_img_prior/train.jsonl \
-    --output /fs/scratch/PAS3526/ICPO_5539/RL_dataset/train_smoke.parquet \
+    --input /fs/scratch/PAS3526/advikaa/prepared_with_answer_correct_only_img/train.jsonl \
+    --output /fs/scratch/PAS3526/ICPO_5539/RL_dataset/prepared_with_answer_correct_only_img.parquet \
     --split train \
-    --limit 10
+    --concise-reasoning
+
+# validation set
+python scripts/rl/prepare_dataset.py \
+    --input /fs/scratch/PAS3526/advikaa/prepared_without_answer_correct_only_img/train.jsonl \
+    --output /fs/scratch/PAS3526/ICPO_5539/RL_dataset/prepared_without_answer_correct_only_img_VALIDATION.parquet \
+    --split validation \
+    --concise-reasoning
 """
 
+OLD_INSTRUCTION = ("Return only the letter of the correct option.")
 
-def convert_sample(sample, idx, split, check_images=True):
+CONCISE_INSTRUCTION = (
+    "Keep your reasoning strictly under 2048 tokens.\n"
+    "Identify the specific finding asked about in the question.\n"
+    "Examine only the images and temporal changes relevant to that finding.\n"
+    "Use any relevant textual evidence provided in the prompt.\n"
+    "Compare the relevant evidence against the answer options.\n"
+    "Do not generate a comprehensive radiology report, describe unrelated "
+    "findings, repeat observations, or reconsider the same evidence.\n"
+    "Stop reasoning immediately once you can select the best answer.\n"
+    "After reasoning, return only the uppercase letter of the correct option "
+    "without any explanation, punctuation, or additional text."
+)
+
+
+def convert_sample(sample, idx, split, check_images=True,concise_reasoning=False):
     metadata = sample.get("metadata", {})
     original = metadata.get("original", {})
     trace = metadata.get("trace", {})
@@ -27,6 +50,14 @@ def convert_sample(sample, idx, split, check_images=True):
 
     if not messages or messages[-1]["role"] != "user":
         raise ValueError(f"Row {idx}: invalid prompt messages")
+
+
+    # NEW: Encourage concise reasoning.
+    if concise_reasoning:
+        content = messages[-1]["content"]
+        if OLD_INSTRUCTION not in content:
+            raise ValueError(f"Row {idx}: original instruction not found")
+        messages[-1]["content"] = content.replace(OLD_INSTRUCTION, CONCISE_INSTRUCTION)
 
     # Preserve temporal image ordering.
     image_paths = sample.get("images", [])
@@ -111,14 +142,20 @@ def main():
     parser.add_argument(
         "--skip-image-check", action="store_true"
     )
+    parser.add_argument(
+        "--concise-reasoning",
+        action="store_true",
+        help="Encourage concise reasoning before the final answer",
+    )
     args = parser.parse_args()
 
     records = []
     stats = Counter()
     seen_ids = set()
+    from tqdm import tqdm
 
     with open(args.input) as f:
-        for idx, line in enumerate(f):
+        for idx, line in enumerate(tqdm(f)):
             if args.limit is not None and len(records) >= args.limit:
                 break
 
@@ -129,6 +166,7 @@ def main():
             record = convert_sample(
                 sample, idx, args.split,
                 check_images=not args.skip_image_check,
+                concise_reasoning=args.concise_reasoning,
             )
 
             info = record["extra_info"]

@@ -41,25 +41,30 @@ def extract_answer(solution_str):
     if not isinstance(solution_str, str):
         return None
 
-    # Prefer the structured answer tag.
-    matches = ANSWER_PATTERN.findall(solution_str)
+    text = solution_str.strip()
+
+    # Remove common generation special tokens.
+    text = text.replace("<|im_end|>", "")
+    text = text.replace("<|endoftext|>", "")
+
+    # Handle both complete thinking blocks and cases where
+    # the opening <think> tag is already in the input prompt.
+    parts = re.split(r"</think>", text, flags=re.IGNORECASE)
+
+    if len(parts) > 1:
+        text = parts[-1]
+
+    # Reject unfinished thinking sections.
+    if re.search(r"<think>", text, flags=re.IGNORECASE):
+        return None
+
+    text = text.strip()
+
+    # Prefer a structured answer tag outside reasoning.
+    matches = ANSWER_PATTERN.findall(text)
 
     if matches:
         return matches[-1].upper()
-
-    # Remove complete and incomplete thinking sections.
-    text = THINK_PATTERN.sub("", solution_str)
-    text = re.sub(
-        r"<think>.*$",
-        "",
-        text,
-        flags=re.IGNORECASE | re.DOTALL,
-    )
-
-    # Remove common thinking-mode special tokens.
-    text = text.replace("<|im_end|>", "")
-    text = text.replace("<|endoftext|>", "")
-    text = text.strip()
 
     # Accept only a standalone answer letter.
     if LETTER_PATTERN.fullmatch(text):

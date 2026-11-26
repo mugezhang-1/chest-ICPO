@@ -45,8 +45,8 @@ ROLLOUT_TP=1
 ROLLOUT_GPU_MEM_UTIL=0.35
 
 MAX_PROMPT_LENGTH=8192
-MAX_RESPONSE_LENGTH=1024
-MAX_MODEL_LEN=9216
+MAX_RESPONSE_LENGTH=2048
+MAX_MODEL_LEN=$(($MAX_PROMPT_LENGTH + $MAX_RESPONSE_LENGTH))
 
 LORA_RANK=8
 LORA_ALPHA=16
@@ -54,8 +54,8 @@ LORA_ALPHA=16
 ACTOR_LR=1e-6
 
 TOTAL_EPOCHS=1
-SAVE_FREQ=20
-TEST_FREQ=20
+SAVE_FREQ=10
+TEST_FREQ=10
 
 # ------------------------------------------------------------
 # Environment
@@ -174,6 +174,8 @@ ARGS=(
     "trainer.default_local_dir=$OUTPUT_DIR"
     "trainer.save_freq=$SAVE_FREQ"
     "trainer.test_freq=$TEST_FREQ"
+    "trainer.rollout_data_dir=$OUTPUT_DIR/rollouts"
+    "trainer.validation_data_dir=$OUTPUT_DIR/validation"
     trainer.resume_mode=disable
 )
 

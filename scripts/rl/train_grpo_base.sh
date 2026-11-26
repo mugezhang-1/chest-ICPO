@@ -26,7 +26,7 @@ BASE_MODEL="${BASE_MODEL:-Qwen/Qwen3.5-9B}"
 TRAIN_FILE="${TRAIN_FILE:-$DATA_ROOT/train_smoke.parquet}"
 VAL_FILE="${VAL_FILE:-$DATA_ROOT/val_smoke.parquet}"
 
-OUTPUT_DIR=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora
+OUTPUT_DIR=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE
 
 PYTHON="$VERL_ROOT/.venv/bin/python"
 

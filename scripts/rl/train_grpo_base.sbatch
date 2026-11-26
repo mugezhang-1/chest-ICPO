@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=256G
-#SBATCH --time=00:20:00
+#SBATCH --time=00:30:00
 #SBATCH --account PAS3526
 #SBATCH --output=logs/qwen35-grpo-base.out
 
@@ -54,6 +54,19 @@ echo "ROCR_VISIBLE_DEVICES=${ROCR_VISIBLE_DEVICES:-unset}"
 echo "HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-unset}"
 
 echo "===== STARTING GRPO ====="
+
+# Reduce informational logs
+export VLLM_LOGGING_LEVEL=ERROR
+export TRANSFORMERS_VERBOSITY=error
+export HF_HUB_DISABLE_PROGRESS_BARS=1
+export TOKENIZERS_PARALLELISM=false
+
+# Reduce Ray startup/logging noise
+export RAY_COLOR_PREFIX=0
+export RAY_DEDUP_LOGS=1
+
+# Suppress Python UserWarning/FutureWarning messages
+export PYTHONWARNINGS="ignore::FutureWarning,ignore::UserWarning"
 
 bash scripts/rl/train_grpo_base.sh
 

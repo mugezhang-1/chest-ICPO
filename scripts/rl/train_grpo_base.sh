@@ -150,6 +150,7 @@ ARGS=(
     "actor_rollout_ref.rollout.tensor_model_parallel_size=$ROLLOUT_TP"
     "actor_rollout_ref.rollout.gpu_memory_utilization=$ROLLOUT_GPU_MEM_UTIL"
     "actor_rollout_ref.rollout.n=$ROLLOUT_N"
+    '+actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_config={reasoning_start_str:"<think>",reasoning_end_str:"</think>"}'
     actor_rollout_ref.rollout.temperature=1.0
     actor_rollout_ref.rollout.enable_chunked_prefill=true
     actor_rollout_ref.rollout.layered_summon=false
@@ -177,6 +178,7 @@ ARGS=(
     "trainer.rollout_data_dir=$OUTPUT_DIR/rollouts"
     "trainer.validation_data_dir=$OUTPUT_DIR/validation"
     trainer.resume_mode=disable
+    trainer.val_before_train=False
 )
 
 # Allow additional Hydra overrides from command line

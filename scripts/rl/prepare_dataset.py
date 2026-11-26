@@ -27,16 +27,11 @@ python scripts/rl/prepare_dataset.py \
 OLD_INSTRUCTION = ("Return only the letter of the correct option.")
 
 CONCISE_INSTRUCTION = (
-    "Keep your reasoning strictly under 2048 tokens.\n"
-    "Identify the specific finding asked about in the question.\n"
-    "Examine only the images and temporal changes relevant to that finding.\n"
-    "Use any relevant textual evidence provided in the prompt.\n"
-    "Compare the relevant evidence against the answer options.\n"
-    "Do not generate a comprehensive radiology report, describe unrelated "
-    "findings, repeat observations, or reconsider the same evidence.\n"
-    "Stop reasoning immediately once you can select the best answer.\n"
-    "After reasoning, return only the uppercase letter of the correct option "
-    "without any explanation, punctuation, or additional text."
+    "Reason in at most 3 short sentences and 256 tokens.\n"
+    "Identify the relevant evidence and select one option.\n"
+    "Do not double-check or repeat your analysis.\n"
+    "Immediately end your reasoning and output only "
+    "the corresponding uppercase option letter."
 )
 
 
@@ -96,6 +91,16 @@ def convert_sample(sample, idx, split, check_images=True,concise_reasoning=False
         if answer_text != expected_text:
             raise ValueError(f"Row {idx}: answer letter/text mismatch")
 
+    # Explicitly label the answer options.
+    old_options = "\n".join(options)
+    new_options = "\n".join(
+        f"{letter}. {option}"
+        for letter, option in zip(valid_letters, options)
+    )
+    content = messages[-1]["content"]
+    if old_options not in content:
+        raise ValueError(f"Row {idx}: original options not found in prompt")
+    messages[-1]["content"] = content.replace(old_options, new_options, 1)
     return {
         "data_source": "chest_icpo",
         "prompt": messages,

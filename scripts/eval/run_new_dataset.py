@@ -35,6 +35,7 @@ import vllm
 
 from vllm import LLM, SamplingParams
 from tqdm import tqdm
+from vllm.lora.request import LoRARequest
 
 
 from icpo import config
@@ -213,6 +214,12 @@ def verify_images(reqs: list[dict], image_root: Path) -> tuple[int, str]:
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True)
+    ap.add_argument(
+        "--lora-path",
+        type=Path,
+        default=None,
+        help="Path to the GRPO-trained PEFT LoRA adapter.",
+    )
     ap.add_argument("--jsonl", type=Path, required=True)
     ap.add_argument("--image-root", type=Path, default=None,
                     help="Dataset root containing images/, or the images/ directory. Default: config images_root.")
@@ -266,19 +273,63 @@ def main():
         m = {**m, "config_patch_applied": patch}
     family = m.get("family", "qwen")
     size = processor_size(snapshot, vis, family)
-    llm = LLM(model=snapshot, tokenizer=snapshot, seed=0, limit_mm_per_prompt={"image": 6},
-              allowed_local_media_path=str(image_root),
-              mm_processor_kwargs={"size": size} if size else None, **m["vllm"])
+
+
+    vllm_kwargs = dict(m["vllm"])
+    lora_request = None
+
+    # Load GRPO-trained LoRA adapter.
+    if args.lora_path is not None:
+        lora_path = args.lora_path.expanduser().resolve()
+        adapter_config_path = lora_path / "adapter_config.json"
+        if not adapter_config_path.is_file():
+            raise FileNotFoundError(adapter_config_path)
+        with adapter_config_path.open() as f:
+            adapter_config = json.load(f)
+        lora_rank = int(adapter_config["r"])
+        vllm_kwargs.update({
+            "enable_lora": True,
+            "max_lora_rank": lora_rank,
+            "max_loras": 1,
+        })
+        lora_request = LoRARequest("grpo_adapter", 1, str(lora_path))
+        print(f"Loading LoRA adapter: {lora_path}", flush=True)
+        print(f"LoRA rank: {lora_rank}", flush=True)
+
+    llm = LLM(
+        model=snapshot,
+        tokenizer=snapshot,
+        seed=0,
+        limit_mm_per_prompt={"image": 6},
+        allowed_local_media_path=str(image_root),
+        mm_processor_kwargs={"size": size} if size else None,
+        **vllm_kwargs,
+    )
+
     max_tokens = max(args.max_tokens, m.get("max_tokens", 0))
     sp = SamplingParams(temperature=0.0, max_tokens=max_tokens, seed=0)
     pad_id = llm.get_tokenizer().convert_tokens_to_ids(
         "<|image_pad|>" if family == "qwen" else "<image_soft_token>"
     )
 
+    # outs = []
+    # for s in range(0, len(reqs), args.chunk):
+    #     outs += llm.chat([r["messages"] for r in reqs[s:s + args.chunk]], sp, use_tqdm=False,
+    #                      chat_template_kwargs=m.get("chat_template_kwargs"))
+    #     print(f"{min(s + args.chunk, len(reqs))}/{len(reqs)}", flush=True)
+
+
+    chat_kwargs = {"use_tqdm": False, "chat_template_kwargs": m.get("chat_template_kwargs")}
+    # Only pass LoRA arguments when evaluating a trained adapter.
+    if args.lora_path is not None:
+        chat_kwargs["lora_request"] = lora_request
     outs = []
     for s in range(0, len(reqs), args.chunk):
-        outs += llm.chat([r["messages"] for r in reqs[s:s + args.chunk]], sp, use_tqdm=False,
-                         chat_template_kwargs=m.get("chat_template_kwargs"))
+        outs += llm.chat(
+            [r["messages"] for r in reqs[s:s + args.chunk]],
+            sp,
+            **chat_kwargs,
+        )
         print(f"{min(s + args.chunk, len(reqs))}/{len(reqs)}", flush=True)
 
     rows = []
@@ -349,8 +400,13 @@ def main():
 
 
     # Save prediction variants
-    output_dir = Path("/fs/scratch/PAS3526/ICPO_5539/eval_results") / args.model
+    model_name = args.model
+    if args.lora_path is not None:
+        model_name = f"{args.model}-lora-{args.tag}"
+    output_dir = Path("/fs/scratch/PAS3526/ICPO_5539/eval_results") / model_name
     output_dir.mkdir(parents=True, exist_ok=True)
+    # output_dir = Path("/fs/scratch/PAS3526/ICPO_5539/eval_results") / args.model
+    # output_dir.mkdir(parents=True, exist_ok=True)
 
     name = args.split
     if args.limit:

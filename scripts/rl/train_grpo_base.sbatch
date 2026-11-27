@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=qwen35-grpo-base_img_only_thinking_budget_1024
-#SBATCH --partition=debug-quad
+#SBATCH --partition=quad
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=256G
-#SBATCH --time=01:00:00
+#SBATCH --time=10:00:00
 #SBATCH --account PAS3526
 #SBATCH --output=logs/qwen35-grpo-base_img_only_thinking_budget_1024.out
 

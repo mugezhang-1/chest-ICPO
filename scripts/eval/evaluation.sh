@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=ICPO_EVAL_test
-#SBATCH --output=ICPO_EVAL_test.out
+#SBATCH --job-name=ICPO_EVAL_val_GRPO_10steps
+#SBATCH --output=ICPO_EVAL_val_GRPO_10steps.out
 #SBATCH --account=PAS3526
 #SBATCH --partition=nextgen
 #SBATCH --nodes=1
@@ -8,7 +8,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
-#SBATCH --time=20:00:00
+#SBATCH --time=12:00:00
 
 module load miniconda3/24.1.2-py310
 conda activate ICPO
@@ -24,17 +24,43 @@ export VLLM_USE_FLASHINFER_SAMPLER=0
 MODEL="qwen3.5-9b-think"
 DATA_ROOT="/fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024"
 
-SPLIT="test"
+SPLIT="val"
 
 cd /users/PAS2912/yusenpeng/chest-ICPO/
 
 echo "Starting $SPLIT inference: $(date)"
+
+############ ORIGINAL HuggingFace MODEL ############
+# python scripts/eval/run_new_dataset.py \
+#     --model "$MODEL" \
+#     --jsonl "$DATA_ROOT/$SPLIT.jsonl" \
+#     --image-root "$DATA_ROOT/images" \
+#     --split "$SPLIT" \
+#     --answer-mode without \
+#     --allow-dirty
+
+############ RL model with LoRA ############
+
+# step 1: extract LoRA adapter from the checkpoint (DO IT ONCE per checkpoint)
+# VERL_ROOT=/fs/scratch/PAS3526/ICPO_5539/verl
+# CKPT=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE/global_step_10
+# cd "$VERL_ROOT"
+# .venv/bin/python -m verl.model_merger merge \
+#     --backend fsdp \
+#     --local_dir "$CKPT/actor" \
+#     --target_dir "$CKPT/exported"
+
+# step 2: run evaluation with the extracted LoRA adapter
+cd /users/PAS2912/yusenpeng/chest-ICPO/
 python scripts/eval/run_new_dataset.py \
     --model "$MODEL" \
     --jsonl "$DATA_ROOT/$SPLIT.jsonl" \
     --image-root "$DATA_ROOT/images" \
     --split "$SPLIT" \
     --answer-mode without \
-    --allow-dirty
+    --allow-dirty \
+    --lora-path /fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE/global_step_10/exported/lora_adapter \
+    --tag grpo_step10
+
 echo "Finished $SPLIT inference: $(date)"
 conda deactivate

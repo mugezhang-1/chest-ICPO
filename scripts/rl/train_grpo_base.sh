@@ -26,7 +26,8 @@ BASE_MODEL="${BASE_MODEL:-Qwen/Qwen3.5-9B}"
 TRAIN_FILE="${TRAIN_FILE:-$DATA_ROOT/train_smoke.parquet}"
 VAL_FILE="${VAL_FILE:-$DATA_ROOT/val_smoke.parquet}"
 
-OUTPUT_DIR=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE
+# OUTPUT_DIR=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE
+OUTPUT_DIR=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_FULL
 
 PYTHON="$VERL_ROOT/.venv/bin/python"
 
@@ -54,8 +55,8 @@ LORA_ALPHA=16
 ACTOR_LR=1e-6
 
 TOTAL_EPOCHS=1
-SAVE_FREQ=10
-TEST_FREQ=10
+SAVE_FREQ=50
+TEST_FREQ=50
 
 # ------------------------------------------------------------
 # Environment

@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=ICPO_EVAL_val_GRPO_10steps
-#SBATCH --output=ICPO_EVAL_val_GRPO_10steps.out
+#SBATCH --job-name=ICPO_EVAL_test_GRPO_120steps
+#SBATCH --output=ICPO_EVAL_test_GRPO_120steps.out
 #SBATCH --account=PAS3526
 #SBATCH --partition=nextgen
 #SBATCH --nodes=1
@@ -24,7 +24,7 @@ export VLLM_USE_FLASHINFER_SAMPLER=0
 MODEL="qwen3.5-9b-think"
 DATA_ROOT="/fs/scratch/PAS3526/ICPO_5539/chesticpo_v2_1024"
 
-SPLIT="val"
+SPLIT="test"
 
 cd /users/PAS2912/yusenpeng/chest-ICPO/
 
@@ -43,7 +43,7 @@ echo "Starting $SPLIT inference: $(date)"
 
 # step 1: extract LoRA adapter from the checkpoint (DO IT ONCE per checkpoint)
 # VERL_ROOT=/fs/scratch/PAS3526/ICPO_5539/verl
-# CKPT=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE/global_step_10
+# CKPT=/fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_FULL/global_step_119
 # cd "$VERL_ROOT"
 # .venv/bin/python -m verl.model_merger merge \
 #     --backend fsdp \
@@ -59,8 +59,8 @@ python scripts/eval/run_new_dataset.py \
     --split "$SPLIT" \
     --answer-mode without \
     --allow-dirty \
-    --lora-path /fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_SMOKE/global_step_10/exported/lora_adapter \
-    --tag grpo_step10
+    --lora-path /fs/scratch/PAS3526/ICPO_5539/grpo_outputs/base_lora_FULL/global_step_119/exported/lora_adapter \
+    --tag grpo_step120
 
 echo "Finished $SPLIT inference: $(date)"
 conda deactivate
